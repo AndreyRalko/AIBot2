@@ -1,35 +1,53 @@
-from telegram import Update
-from telegram.ext import ApplicationBuilder, ContextTypes, MessageHandler, filters
-from rag_engine import get_answer
-from config import TELEGRAM_TOKEN
+import asyncio
 import logging
+from aiogram import Bot, Dispatcher, types
+from aiogram.types import Message
+from aiogram.enums import ParseMode
+from aiogram.fsm.storage.memory import MemoryStorage
+from aiogram.client.default import DefaultBotProperties
+from redis.asyncio import Redis
+from arq.connections import create_pool,RedisSettings
 
-logging.basicConfig(
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.INFO
+from config import TELEGRAM_TOKEN, REDIS_URL
+from urllib.parse import urlparse
+
+# Настройка логирования
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+# Инициализация бота и диспетчера
+bot = Bot(
+    token=TELEGRAM_TOKEN,
+    default=DefaultBotProperties(parse_mode=ParseMode.HTML)
+)
+dp = Dispatcher(storage=MemoryStorage())
+
+parsed = urlparse(REDIS_URL)
+
+redis_settings = RedisSettings(
+    host=parsed.hostname,
+    port=parsed.port or 6379,
+    password=parsed.password,
+    database=int(parsed.path[1:]) if parsed.path else 0,
 )
 
-async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if update.message is None or update.message.text is None:
-        return
+@dp.message()
+async def handle_message(message: Message):
+    """Обрабатывает входящие сообщения и ставит их в очередь."""
+    user_id = message.chat.id
+    user_message = message.text.strip()
 
-    user_message = update.message.text.strip()
-    if not user_message:
-        await update.message.reply_text("Пожалуйста, введите текст.")
-        return
+    logger.info(f"📥 Получен запрос от {user_id}: {user_message}")
 
-    try:
-        answer = await get_answer(user_message)
-        await update.message.reply_text(answer)
-    except Exception as e:
-        logging.exception("Ошибка при обработке сообщения:")
-        await update.message.reply_text("Произошла ошибка при обработке запроса.")
+    redis = await create_pool(redis_settings)
+    await redis.enqueue_job("process_query", user_id, user_message)
 
-def main():
-    app = ApplicationBuilder().token(TELEGRAM_TOKEN).build()  # ← здесь используется токен из config
-    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
+    await message.answer("⏳ Ваш вопрос принят. Ответ будет отправлен, как только будет готов.")
 
-    logging.info("Бот запущен...")
-    app.run_polling()
+
+async def main():
+    await dp.start_polling(bot)
+
 
 if __name__ == "__main__":
-    main()
+    asyncio.run(main())

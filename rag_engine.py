@@ -8,6 +8,7 @@ from config import OPENAI_API_KEY
 from db.crud import get_cached_answer, save_answer
 from db.async_session import get_session
 
+
 def get_qa_chain():
     loader = TextLoader("data/knowledge.txt", encoding='utf-8')
     docs = loader.load()
@@ -21,7 +22,9 @@ def get_qa_chain():
     llm = ChatOpenAI(openai_api_key=OPENAI_API_KEY)
     return RetrievalQA.from_chain_type(llm=llm, retriever=retriever)
 
+
 qa_chain = get_qa_chain()
+
 
 async def get_answer(query: str) -> str:
     async for session in get_session():
@@ -29,7 +32,7 @@ async def get_answer(query: str) -> str:
         if cached:
             return cached
 
-        # Вызов асинхронного метода arun, если он доступен
+        # Вызов асинхронного метода arun для получения ответа
         result = await qa_chain.arun(query)
 
         await save_answer(query, result, session)
