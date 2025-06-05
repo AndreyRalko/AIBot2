@@ -1,0 +1,12 @@
+python-telegram-bot==20.7
+openai
+langchain==0.1.14
+langchain-community>=0.0.38
+langchain-openai>=0.1.7
+faiss-cpu
+tiktoken
+SQLAlchemy
+alembic
+aiosqlite
+sqlalchemy[asyncio]
+
