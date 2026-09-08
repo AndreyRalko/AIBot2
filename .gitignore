@@ -1,15 +1,45 @@
+# Secrets
+.env
+.env.*
+!.env.example
+*.pem
+credentials.json
+
+# Python
 venv/
 .venv/
+env/
 __pycache__/
 *.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+dist/
+build/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Django
 *.sqlite3
+*.sqlite3-*
 db.sqlite3
-.env
 media/
 staticfiles/
+local_settings.py
+
+# Project data
 faiss_index/
 qa_cache.db
 *.log
+
+# OS / IDE
 .idea/
 .vscode/
+.DS_Store
+Thumbs.db
+desktop.ini
 *.canvas.data.json
