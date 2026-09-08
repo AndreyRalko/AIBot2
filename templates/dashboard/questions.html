@@ -1,0 +1,54 @@
+{% extends "dashboard/base.html" %}
+{% block title %}Вопросы · Ualikhanov University{% endblock %}
+{% block content %}
+  <header class="page-head">
+    <div>
+      <h1>Вопросы пользователей</h1>
+      <p>Все обращения в Telegram-бота, с фильтром по языку и отказам.</p>
+    </div>
+    <a class="btn ghost" href="{% url 'dashboard:questions_export' %}">Скачать CSV</a>
+  </header>
+
+  <form class="filters" method="get">
+    <input type="search" name="q" value="{{ q }}" placeholder="Поиск по тексту">
+    <select name="language">
+      <option value="">Любой язык</option>
+      <option value="ru" {% if language == "ru" %}selected{% endif %}>Русский</option>
+      <option value="kk" {% if language == "kk" %}selected{% endif %}>Қазақша</option>
+    </select>
+    <label class="check">
+      <input type="checkbox" name="unanswered" value="1" {% if unanswered %}checked{% endif %}>
+      Только без ответа
+    </label>
+    <button class="btn" type="submit">Показать</button>
+  </form>
+  <p class="muted">Найдено: {{ total }}</p>
+
+  <div class="panel">
+    <table class="plain">
+      <thead>
+        <tr>
+          <th>Когда</th>
+          <th>Вопрос</th>
+          <th>Ответ</th>
+          <th>Метки</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for item in questions %}
+          <tr>
+            <td>{{ item.created_at|date:"d.m.Y H:i" }}</td>
+            <td>{{ item.question }}</td>
+            <td>{{ item.answer|truncatechars:180 }}</td>
+            <td>
+              <span class="tag">{% if item.language == "kk" %}Қазақша{% else %}Русский{% endif %}</span>
+              {% if item.is_unanswered %}<span class="tag warn">нет ответа</span>{% endif %}
+            </td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="4" class="muted">Вопросов нет</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+{% endblock %}

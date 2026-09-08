@@ -1,0 +1,15 @@
+venv/
+.venv/
+__pycache__/
+*.py[cod]
+*.sqlite3
+db.sqlite3
+.env
+media/
+staticfiles/
+faiss_index/
+qa_cache.db
+*.log
+.idea/
+.vscode/
+*.canvas.data.json

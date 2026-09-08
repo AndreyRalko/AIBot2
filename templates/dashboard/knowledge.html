@@ -1,0 +1,85 @@
+{% extends "dashboard/base.html" %}
+{% block title %}База знаний · Ualikhanov University{% endblock %}
+{% block content %}
+  <header class="page-head">
+    <div>
+      <h1>База знаний</h1>
+      <p>Файлы и тексты, из которых бот собирает ответы. После каждой загрузки индекс пересобирается.</p>
+    </div>
+    <form method="post" action="{% url 'dashboard:knowledge_rebuild' %}">
+      {% csrf_token %}
+      <button type="submit" class="btn ghost">Пересобрать индекс</button>
+    </form>
+  </header>
+
+  {% if last_index %}
+    <p class="muted">
+      Последняя сборка: {{ last_index.built_at }} ·
+      {{ last_index.document_count }} док. · {{ last_index.chunk_count }} фрагм. ·
+      {{ last_index.embed_model }}
+      {% if not last_index.success %}· ошибка: {{ last_index.error }}{% endif %}
+    </p>
+  {% endif %}
+
+  <section class="grid-2">
+    <form class="panel" method="post" enctype="multipart/form-data">
+      {% csrf_token %}
+      <input type="hidden" name="action" value="upload">
+      <h2>Загрузить файл</h2>
+      <p class="muted">Подходят .txt и .md в UTF-8.</p>
+      {{ upload_form.non_field_errors }}
+      <label>Название {{ upload_form.title }}</label>
+      <label>Файл {{ upload_form.file }}</label>
+      <button type="submit" class="btn">Сохранить и проиндексировать</button>
+    </form>
+    <form class="panel" method="post">
+      {% csrf_token %}
+      <input type="hidden" name="action" value="paste">
+      <h2>Вставить текст</h2>
+      {{ text_form.non_field_errors }}
+      <label>Название {{ text_form.title }}</label>
+      <label>Текст {{ text_form.content }}</label>
+      <button type="submit" class="btn">Добавить в индекс</button>
+    </form>
+  </section>
+
+  <section class="panel">
+    <h2>Документы</h2>
+    <table class="plain">
+      <thead>
+        <tr>
+          <th>Название</th>
+          <th>Символов</th>
+          <th>Статус</th>
+          <th>Дата</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for doc in documents %}
+          <tr>
+            <td>
+              <div>{{ doc.title }}</div>
+              <div class="muted">{{ doc.original_name }}</div>
+            </td>
+            <td>{{ doc.char_count }}</td>
+            <td>{% if doc.is_active %}<span class="tag">в индексе</span>{% else %}<span class="tag warn">выключен</span>{% endif %}</td>
+            <td>{{ doc.created_at|date:"d.m.Y H:i" }}</td>
+            <td class="actions">
+              <form method="post" action="{% url 'dashboard:knowledge_toggle' doc.pk %}">
+                {% csrf_token %}
+                <button class="linkish" type="submit">{% if doc.is_active %}Выключить{% else %}Включить{% endif %}</button>
+              </form>
+              <form method="post" action="{% url 'dashboard:knowledge_delete' doc.pk %}" onsubmit="return confirm('Удалить документ?')">
+                {% csrf_token %}
+                <button class="linkish danger" type="submit">Удалить</button>
+              </form>
+            </td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="5" class="muted">Документов нет. Загрузите knowledge.txt или вставьте текст.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </section>
+{% endblock %}

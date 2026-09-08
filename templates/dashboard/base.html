@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  {% load static %}
+  <title>{% block title %}Ualikhanov University · консультант{% endblock %}</title>
+  <link rel="icon" type="image/png" href="{% static 'dashboard/logo.png' %}">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=Source+Serif+4:opsz,wght@8..60,600;8..60,700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{% static 'dashboard/app.css' %}">
+  {% block extra_head %}{% endblock %}
+</head>
+<body>
+  <aside class="sidebar">
+    <div class="brand">
+      {% include "dashboard/_logo.html" %}
+    </div>
+    <nav>
+      <a href="{% url 'dashboard:home' %}" class="{% if request.resolver_match.url_name == 'home' %}active{% endif %}">Сводка</a>
+      <a href="{% url 'dashboard:knowledge' %}" class="{% if request.resolver_match.url_name == 'knowledge' %}active{% endif %}">База знаний</a>
+      <a href="{% url 'dashboard:questions' %}" class="{% if 'questions' in request.resolver_match.url_name %}active{% endif %}">Вопросы</a>
+      <a href="{% url 'admin:index' %}">Django Admin</a>
+    </nav>
+    <form class="logout" method="post" action="{% url 'dashboard:logout' %}">
+      {% csrf_token %}
+      <div class="who">{{ request.user.username }}</div>
+      <button type="submit">Выйти</button>
+    </form>
+  </aside>
+  <main class="content">
+    {% if messages %}
+      <div class="flash-list">
+        {% for message in messages %}
+          <div class="flash {{ message.tags }}">{{ message }}</div>
+        {% endfor %}
+      </div>
+    {% endif %}
+    {% block content %}{% endblock %}
+  </main>
+  <script src="{% static 'dashboard/datepicker.js' %}"></script>
+  {% block extra_js %}{% endblock %}
+</body>
+</html>

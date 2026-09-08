@@ -1,0 +1,174 @@
+{% extends "dashboard/base.html" %}
+{% block title %}Сводка · Ualikhanov University{% endblock %}
+{% block extra_head %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+{% endblock %}
+{% block content %}
+  <header class="page-head">
+    <div>
+      <h1>Сводка</h1>
+      <p>Аналитика вопросов за период: {{ period_label }}.</p>
+    </div>
+    <form method="get" class="period-form" id="period-form">
+      <div class="period-field">
+        <span class="period-field-label">Период</span>
+        <select name="period" id="period-select" class="period-select">
+          {% for value, label in period_choices %}
+            <option value="{{ value }}" {% if period == value %}selected{% endif %}>{{ label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="period-field" id="custom-dates" {% if period != "custom" %}hidden{% endif %}>
+        <span class="period-field-label">Интервал</span>
+        <div class="date-range">
+          <div class="date-chip">
+            <span class="date-chip-kicker">С</span>
+            <span class="date-chip-icon" aria-hidden="true">
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                <rect x="2" y="3.5" width="12" height="11" rx="2" stroke="currentColor" stroke-width="1.3"/>
+                <path d="M2 6.5h12" stroke="currentColor" stroke-width="1.3"/>
+                <path d="M5 2v3M11 2v3" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>
+              </svg>
+            </span>
+            <input type="date" name="from" value="{{ date_from }}" aria-label="Дата начала">
+          </div>
+          <span class="date-range-sep" aria-hidden="true"></span>
+          <div class="date-chip">
+            <span class="date-chip-kicker">По</span>
+            <span class="date-chip-icon" aria-hidden="true">
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                <rect x="2" y="3.5" width="12" height="11" rx="2" stroke="currentColor" stroke-width="1.3"/>
+                <path d="M2 6.5h12" stroke="currentColor" stroke-width="1.3"/>
+                <path d="M5 2v3M11 2v3" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>
+              </svg>
+            </span>
+            <input type="date" name="to" value="{{ date_to }}" aria-label="Дата окончания">
+          </div>
+          <button class="btn" type="submit">Показать</button>
+        </div>
+      </div>
+    </form>
+  </header>
+
+  <section class="stats">
+    <article>
+      <div class="stat-value">{{ total_questions }}</div>
+      <div class="stat-label">Вопросов за период</div>
+    </article>
+    <article>
+      <div class="stat-value warn">{{ unanswered_count }}</div>
+      <div class="stat-label">Без ответа</div>
+    </article>
+    <article>
+      <div class="stat-value">{{ active_docs }}</div>
+      <div class="stat-label">Документов в базе</div>
+    </article>
+  </section>
+
+  <section class="grid-2">
+    <div class="panel">
+      <h2>Вопросы по {% if chart_by_month %}месяцам{% else %}дням{% endif %}</h2>
+      <canvas id="dailyChart" height="140"></canvas>
+    </div>
+    <div class="panel">
+      <h2>Язык вопросов</h2>
+      {% if languages_json %}
+        <div class="chart-box">
+          <canvas id="langChart"></canvas>
+        </div>
+        <ul class="rank">
+          {% for item in languages_json %}
+            <li>
+              <span>{{ item.label }}</span>
+              <b>{{ item.total }}</b>
+            </li>
+          {% endfor %}
+        </ul>
+      {% else %}
+        <p class="muted">Нет вопросов за выбранный период.</p>
+      {% endif %}
+    </div>
+  </section>
+
+  <section class="grid-2">
+    <div class="panel">
+      <h2>Частые формулировки</h2>
+      {% if top_questions %}
+        <ol class="rank">
+          {% for item in top_questions %}
+            <li>
+              <span>{{ item.question }}</span>
+              <b>{{ item.total }}</b>
+            </li>
+          {% endfor %}
+        </ol>
+      {% else %}
+        <p class="muted">Нет вопросов за выбранный период.</p>
+      {% endif %}
+    </div>
+    <div class="panel">
+      <h2>Последние вопросы</h2>
+      <p class="muted">Индекс: {% if last_index %}{{ last_index.built_at }} · {{ last_index.chunk_count }} фрагм.{% else %}ещё не собран{% endif %}. Документов: {{ active_docs }}.</p>
+      <table class="plain">
+        <thead>
+          <tr><th>Когда</th><th>Вопрос</th><th></th></tr>
+        </thead>
+        <tbody>
+          {% for item in latest_questions %}
+            <tr>
+              <td>{{ item.created_at|date:"d.m H:i" }}</td>
+              <td>{{ item.question|truncatechars:90 }}</td>
+              <td>
+                <span class="tag">{% if item.language == "kk" %}Қазақша{% else %}Русский{% endif %}</span>
+                {% if item.is_unanswered %}<span class="tag warn">нет ответа</span>{% endif %}
+              </td>
+            </tr>
+          {% empty %}
+            <tr><td colspan="3" class="muted">Пусто</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  {{ daily_json|json_script:"daily-data" }}
+  {{ languages_json|json_script:"lang-data" }}
+  <script>
+    const daily = JSON.parse(document.getElementById("daily-data").textContent);
+    const langs = JSON.parse(document.getElementById("lang-data").textContent);
+    const ink = "#1b2430";
+    const gold = "#b08d57";
+    const rust = "#a33b2b";
+    new Chart(document.getElementById("dailyChart"), {
+      type: "line",
+      data: {
+        labels: daily.map(r => r.day),
+        datasets: [
+          { label: "Вопросы", data: daily.map(r => r.total), borderColor: ink, backgroundColor: "rgba(27,36,48,.08)", fill: true, tension: .25 },
+          { label: "Без ответа", data: daily.map(r => r.unanswered), borderColor: rust, tension: .25 }
+        ]
+      },
+      options: { plugins: { legend: { position: "bottom" } }, scales: { y: { beginAtZero: true, ticks: { precision: 0 } } } }
+    });
+    document.getElementById("period-select").addEventListener("change", function () {
+      const custom = this.value === "custom";
+      document.getElementById("custom-dates").hidden = !custom;
+      if (!custom) this.form.submit();
+    });
+    const langCanvas = document.getElementById("langChart");
+    if (langCanvas && langs.length) {
+      new Chart(langCanvas, {
+        type: "doughnut",
+        data: {
+          labels: langs.map(r => r.label),
+          datasets: [{ data: langs.map(r => r.total), backgroundColor: [ink, gold] }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { legend: { position: "bottom" } }
+        }
+      });
+    }
+  </script>
+{% endblock %}
