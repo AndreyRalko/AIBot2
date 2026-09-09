@@ -1,13 +1,18 @@
+import logging
 from pathlib import Path
 
 from django.conf import settings
+from filelock import FileLock
 from langchain_community.vectorstores import FAISS
 from langchain_core.documents import Document
 from langchain_openai import OpenAIEmbeddings
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 
+from knowledge.bootstrap import ensure_default_document
 from knowledge.models import IndexBuild, KnowledgeDocument
 from qa.models import AnswerCache
+
+logger = logging.getLogger(__name__)
 
 
 def _embeddings():
@@ -28,7 +33,33 @@ def load_vectordb():
     )
 
 
+def ensure_index():
+    """Return FAISS index, seeding knowledge and rebuilding if the files are missing."""
+    vectordb = load_vectordb()
+    if vectordb is not None:
+        return vectordb
+
+    index_dir = Path(settings.FAISS_INDEX_DIR)
+    index_dir.mkdir(parents=True, exist_ok=True)
+    with FileLock(str(index_dir / "rebuild.lock")):
+        vectordb = load_vectordb()
+        if vectordb is not None:
+            return vectordb
+        seeded = ensure_default_document()
+        if seeded:
+            logger.info("Loaded default knowledge from data/knowledge.txt")
+        result = rebuild_index()
+        if not result["ok"]:
+            logger.error("Failed to build FAISS index: %s", result.get("error"))
+            return None
+        logger.info("FAISS index built: %s chunks", result.get("chunks"))
+        return load_vectordb()
+
+
 def rebuild_index():
+    if not settings.OPENAI_API_KEY:
+        return {"ok": False, "error": "OPENAI_API_KEY не задан.", "chunks": 0}
+
     docs = list(KnowledgeDocument.objects.filter(is_active=True).exclude(content=""))
     if not docs:
         IndexBuild.objects.create(

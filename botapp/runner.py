@@ -9,6 +9,7 @@ from django.conf import settings
 
 from qa.services import atouch_telegram_user, get_chat_history
 from rag.engine import get_answer
+from rag.indexer import ensure_index
 
 logger = logging.getLogger(__name__)
 dp = Dispatcher()
@@ -67,6 +68,14 @@ async def handle_text(message: Message):
 async def _run():
     if not settings.TELEGRAM_TOKEN:
         raise RuntimeError("TELEGRAM_TOKEN не задан. Укажите его в файле .env")
+    if not settings.OPENAI_API_KEY:
+        raise RuntimeError("OPENAI_API_KEY не задан. Без него база знаний не работает.")
+    vectordb = await sync_to_async(ensure_index)()
+    if vectordb is None:
+        raise RuntimeError(
+            "Не собран индекс базы знаний. Проверьте OPENAI_API_KEY и выполните: python manage.py seed_knowledge"
+        )
+    logger.info("Knowledge index is ready")
     bot = Bot(token=settings.TELEGRAM_TOKEN)
     await dp.start_polling(bot)
 

@@ -9,5 +9,6 @@ class Command(BaseCommand):
         call_command("migrate", interactive=False)
         call_command("collectstatic", interactive=False, verbosity=1)
         call_command("ensure_admin")
+        call_command("seed_knowledge")
         call_command("check", deploy=True)
         self.stdout.write(self.style.SUCCESS("Production-подготовка завершена."))

@@ -1,3 +1,5 @@
+import logging
+
 from asgiref.sync import sync_to_async
 from django.conf import settings
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
@@ -12,8 +14,9 @@ from qa.services import (
     log_question,
     save_cached_answer,
 )
-from rag.indexer import load_vectordb
+from rag.indexer import ensure_index
 
+logger = logging.getLogger(__name__)
 DetectorFactory.seed = 0
 
 NO_ANSWER_TOKEN = "[[NO_ANSWER]]"
@@ -83,7 +86,7 @@ def _normalize_query(text: str) -> str:
 
 
 def _retrieve(query_ru: str):
-    vectordb = load_vectordb()
+    vectordb = ensure_index()
     if vectordb is None:
         return None, True, "empty_index"
     query = _normalize_query(query_ru)
@@ -144,6 +147,7 @@ async def get_answer(query: str, user: TelegramUser) -> str:
     pairs, is_unanswered, reason = await sync_to_async(_retrieve)(query_ru)
 
     if is_unanswered:
+        logger.warning("No knowledge hit for query (%s): %s", reason, query_ru[:200])
         answer_ru = _fallback_unanswered()
         await sync_to_async(log_question)(
             user=user,

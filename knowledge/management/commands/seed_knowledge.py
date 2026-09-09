@@ -1,39 +1,28 @@
-from pathlib import Path
+from django.core.management.base import BaseCommand, CommandError
 
-from django.conf import settings
-from django.core.management.base import BaseCommand
-
+from knowledge.bootstrap import DEFAULT_TITLE, read_default_knowledge_text
 from knowledge.models import KnowledgeDocument
 from rag.indexer import rebuild_index
-
-INSTRUCTION_MARKERS = ("[[NO_ANSWER]]", "Давай ответы только")
 
 
 class Command(BaseCommand):
     help = "Импортирует data/knowledge.txt в базу знаний и собирает индекс"
 
     def handle(self, *args, **options):
-        path = Path(settings.BASE_DIR) / "data" / "knowledge.txt"
-        if not path.exists():
-            self.stderr.write(f"Файл не найден: {path}")
-            return
+        text = read_default_knowledge_text()
+        if not text:
+            raise CommandError("Файл data/knowledge.txt не найден или пуст.")
 
-        text = path.read_text(encoding="utf-8").strip()
-        lines = text.splitlines()
-        if lines and any(marker in lines[0] for marker in INSTRUCTION_MARKERS):
-            text = "\n".join(lines[1:]).strip()
-
-        doc, created = KnowledgeDocument.objects.update_or_create(
-            title="Поступление и общежитие КГУ",
+        _doc, created = KnowledgeDocument.objects.update_or_create(
+            title=DEFAULT_TITLE,
             defaults={"content": text, "original_name": "knowledge.txt", "is_active": True},
         )
         result = rebuild_index()
         action = "создан" if created else "обновлён"
-        if result["ok"]:
-            self.stdout.write(
-                self.style.SUCCESS(
-                    f"Документ {action}, индекс собран ({result['chunks']} фрагментов)."
-                )
+        if not result["ok"]:
+            raise CommandError(f"Документ {action}, индекс не собран: {result['error']}")
+        self.stdout.write(
+            self.style.SUCCESS(
+                f"Документ {action}, индекс собран ({result['chunks']} фрагментов)."
             )
-        else:
-            self.stdout.write(self.style.WARNING(f"Документ {action}, индекс: {result['error']}"))
+        )
