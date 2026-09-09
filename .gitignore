@@ -35,6 +35,7 @@ local_settings.py
 faiss_index/
 qa_cache.db
 *.log
+logs/
 
 # OS / IDE
 .idea/

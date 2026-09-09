@@ -7,8 +7,15 @@ if exist ".venv\Scripts\activate.bat" (
   call venv\Scripts\activate.bat
 )
 
-echo Starting Django admin at http://127.0.0.1:8000/  (development)
-start "AIBot Django" cmd /k "python manage.py runserver"
+echo Preparing production...
+python manage.py prepare_prod
+if errorlevel 1 (
+  echo Production check failed.
+  exit /b 1
+)
+
+echo Starting Waitress at http://0.0.0.0:8000/
+start "AIBot Web" cmd /k "python serve.py"
 
 echo Starting Telegram bot...
 start "AIBot Telegram" cmd /k "python manage.py runbot"
