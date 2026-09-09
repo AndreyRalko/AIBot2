@@ -1,4 +1,5 @@
 """Django settings for the KGU admissions assistant."""
+import os
 from pathlib import Path
 
 import environ
@@ -13,7 +14,16 @@ env = environ.Env(
 )
 environ.Env.read_env(BASE_DIR / ".env")
 
-SECRET_KEY = env("DJANGO_SECRET_KEY", default="")
+
+def _raw_env(name, default=""):
+    """Read .env as-is: django-environ treats a leading $ as another variable."""
+    value = os.environ.get(name, default)
+    if len(value) >= 2 and value[0] == value[-1] and value[0] in {"'", '"'}:
+        value = value[1:-1]
+    return value
+
+
+SECRET_KEY = _raw_env("DJANGO_SECRET_KEY")
 DEBUG = env("DJANGO_DEBUG")
 ALLOWED_HOSTS = [
     host.strip()
@@ -28,7 +38,10 @@ if DEBUG:
             ALLOWED_HOSTS.append(host)
 else:
     if not SECRET_KEY or SECRET_KEY in {"change-me", "unsafe-dev-key"}:
-        raise ImproperlyConfigured("Задайте DJANGO_SECRET_KEY в .env для production.")
+        raise ImproperlyConfigured(
+            "Задайте DJANGO_SECRET_KEY в .env для production. "
+            "Кавычки не нужны. Ключ с $ в начале Django читает как есть."
+        )
     if not ALLOWED_HOSTS:
         raise ImproperlyConfigured("Задайте DJANGO_ALLOWED_HOSTS в .env для production.")
     if "*" in ALLOWED_HOSTS:
@@ -202,8 +215,8 @@ LOGGING = {
     },
 }
 
-TELEGRAM_TOKEN = env("TELEGRAM_TOKEN", default="")
-OPENAI_API_KEY = env("OPENAI_API_KEY", default="")
+TELEGRAM_TOKEN = _raw_env("TELEGRAM_TOKEN")
+OPENAI_API_KEY = _raw_env("OPENAI_API_KEY")
 EMBEDDING_MODEL = env("EMBEDDING_MODEL", default="text-embedding-3-small")
 CHAT_MODEL = env("CHAT_MODEL", default="gpt-4o-mini")
 FAISS_SCORE_THRESHOLD = env.float("FAISS_SCORE_THRESHOLD", default=1.35)
