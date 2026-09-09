@@ -9,7 +9,7 @@ elif [ -f venv/bin/activate ]; then
 fi
 
 python manage.py prepare_prod
-LISTEN="${WAITRESS_LISTEN:-0.0.0.0:8000}"
+LISTEN="${WAITRESS_LISTEN:-0.0.0.0:8089}"
 
 python serve.py &
 python manage.py runbot

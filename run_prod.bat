@@ -14,7 +14,7 @@ if errorlevel 1 (
   exit /b 1
 )
 
-echo Starting Waitress at http://0.0.0.0:8000/
+echo Starting Waitress at http://0.0.0.0:8089/
 start "AIBot Web" cmd /k "python serve.py"
 
 echo Starting Telegram bot...

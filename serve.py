@@ -10,10 +10,10 @@ application = get_wsgi_application()
 
 
 def main():
-    listen = os.environ.get("WAITRESS_LISTEN", "0.0.0.0:8000")
+    listen = os.environ.get("WAITRESS_LISTEN", "0.0.0.0:8089")
     host, _, port = listen.rpartition(":")
     if not host or not port:
-        host, port = "0.0.0.0", "8000"
+        host, port = "0.0.0.0", "8089"
     threads = int(os.environ.get("WAITRESS_THREADS", "6"))
     print(f"Waitress listening on {host}:{port}")
     serve(application, host=host, port=int(port), threads=threads, ident="aibot")
