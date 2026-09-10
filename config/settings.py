@@ -49,6 +49,9 @@ else:
 
 USE_HTTPS = env("DJANGO_SECURE") or not DEBUG
 BEHIND_PROXY = (not DEBUG) or env("DJANGO_BEHIND_PROXY") or USE_HTTPS
+# nginx already terminates TLS. Django must not 301 HTTP→HTTPS or the
+# proxy loop (https → waitress http → 301 https) never ends.
+SSL_REDIRECT = env.bool("DJANGO_SSL_REDIRECT", default=False)
 
 CSRF_TRUSTED_ORIGINS = [
     origin.strip().rstrip("/")
@@ -171,12 +174,13 @@ if BEHIND_PROXY:
     USE_X_FORWARDED_HOST = True
 
 if USE_HTTPS:
-    SECURE_SSL_REDIRECT = True
+    SECURE_SSL_REDIRECT = SSL_REDIRECT
     SESSION_COOKIE_SECURE = True
     CSRF_COOKIE_SECURE = True
-    SECURE_HSTS_SECONDS = env.int("DJANGO_SECURE_HSTS_SECONDS", default=31536000)
-    SECURE_HSTS_INCLUDE_SUBDOMAINS = True
-    SECURE_HSTS_PRELOAD = True
+    SECURE_HSTS_SECONDS = env.int("DJANGO_SECURE_HSTS_SECONDS", default=0)
+    if SECURE_HSTS_SECONDS:
+        SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+        SECURE_HSTS_PRELOAD = True
 
 FILE_UPLOAD_MAX_MEMORY_SIZE = 10 * 1024 * 1024
 DATA_UPLOAD_MAX_MEMORY_SIZE = 10 * 1024 * 1024
