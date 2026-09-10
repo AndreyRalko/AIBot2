@@ -47,14 +47,23 @@ else:
     if "*" in ALLOWED_HOSTS:
         raise ImproperlyConfigured("Не используйте * в DJANGO_ALLOWED_HOSTS в production.")
 
-USE_HTTPS = env("DJANGO_SECURE")
-BEHIND_PROXY = env("DJANGO_BEHIND_PROXY") or USE_HTTPS
+USE_HTTPS = env("DJANGO_SECURE") or not DEBUG
+BEHIND_PROXY = (not DEBUG) or env("DJANGO_BEHIND_PROXY") or USE_HTTPS
 
 CSRF_TRUSTED_ORIGINS = [
-    origin.strip()
+    origin.strip().rstrip("/")
     for origin in env("DJANGO_CSRF_TRUSTED_ORIGINS", default="").split(",")
     if origin.strip()
 ]
+for host in ALLOWED_HOSTS:
+    if host in {"testserver"} or host.startswith("."):
+        continue
+    https_origin = f"https://{host}"
+    http_origin = f"http://{host}"
+    if https_origin not in CSRF_TRUSTED_ORIGINS:
+        CSRF_TRUSTED_ORIGINS.append(https_origin)
+    if host in {"127.0.0.1", "localhost"} and http_origin not in CSRF_TRUSTED_ORIGINS:
+        CSRF_TRUSTED_ORIGINS.append(http_origin)
 
 INSTALLED_APPS = [
     "django.contrib.admin",
